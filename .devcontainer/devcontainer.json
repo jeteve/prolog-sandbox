@@ -20,7 +20,8 @@
  	"customizations": {
 		"vscode": {
 			"extensions": [
-				"rebornix.prolog"
+				"rebornix.prolog",
+				"analytic-signal.preview-pdf"
 			]
 		}
 	}
