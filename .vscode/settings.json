@@ -1,5 +1,6 @@
 {
     "files.associations": {
         "*.pl": "prolog"
-    }
+    },
+    "terminal.integrated.fontSize": 20
 }
