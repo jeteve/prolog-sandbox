@@ -1,3 +1,28 @@
+/* 
+
+Let's redefine natural number arithmetic in swi prolog.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ */
 nat(z).
 nat(s(X)) :- nat(X).
 sum(X,z,X).
