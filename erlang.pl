@@ -114,7 +114,65 @@ multi_reduce([job(1,[fact(5,N)]), job(2,[fibo(6,N2), {write(N2),nl}])]).
 % Ok, we have round robin scheduling!
 % notice the uglyness of 'rule'? What about we can define functions like:
 % fact1(0) -> return(1);
-% fact1(N) -> .. _assign_  Result.. return(Result)
+% fact1(N) -> .. _assign recursive calls_  Result.. return(Result)
+% And call them like:
+% Result = function(Arg), write(Result).
 % Let's write an interpreter that allows assignments and returning.
 %
 %
+
+reducef([]).
+reducef([ Var = Rhs | T]) :- !,
+    reducef([ Rhs, '$bind'(Var) | T]). % <-- $bind is a special token. Not to be used by anything else. We'll reduce it later
+% ^^ we will reduce the Rhs and we carry the $bind(Var) with us for the rest of the reduction.
+
+% Something that returns ALWAYS have to return into something. In other words, return and = are both sides of the same
+% feature.
+reducef([return(Value), '$bind'(Var) | T]) :- !,
+    =(Var, Value), % Unify. Value is now bounded to the same as Var
+    reducef(T). % Q: Why is $bind 
+
+% Case of native predicate
+reducef([{X} | T ]):-
+    call(X), !,
+    reducef(T).
+
+% Start building in some functions native in our language instead of
+% using the native prolog ones:
+reducef([write(X) | T]) :- !,
+    write(X),
+    reducef(T).
+
+% same for nl
+reducef([nl | T]) :- !,
+    nl,
+    reducef(T).
+
+reducef([H | T]) :-
+    deff(H, Body), ! , % Note we call that deff (as function definition :))
+    append(Body, T , T1), % we expanded the body.
+    reducef(T1).
+
+
+deff(addone(0), [
+    return(1)
+]).
+deff(addone(X), [
+    { R is X + 1 },
+    return(R)
+]).
+
+% Try: reducef([X = addone(1), write(X), nl ]).
+% Try: reducef([addone(5)]).
+% Note: nothing to resolve. False.
+
+% Try trace and see how the thing is resolved 
+
+
+deff(fact(0), [ return(1) ]).
+deff(fact(N), [{ N1 is N -1 }, F1 = fact(N1), { R is N * F1 }, return(R)]).
+
+% Try: 
+% reducef([X = fact(256), write(X), nl ]).
+
+% Putting it all together 
