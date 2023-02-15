@@ -116,6 +116,8 @@ multi_reduce([job(1,[fact(5,N)]), job(2,[fibo(6,N2), {write(N2),nl}])]).
 % fact1(0) -> return(1);
 % fact1(N) -> .. _assign recursive calls_  Result.. return(Result)
 % And call them like:
+% X = f(Y). whe f finishes with return(Something).
+% instead of P(X,Y)
 % Result = function(Arg), write(Result).
 % Let's write an interpreter that allows assignments and returning.
 %
@@ -176,3 +178,55 @@ deff(fact(N), [{ N1 is N -1 }, F1 = fact(N1), { R is N * F1 }, return(R)]).
 % reducef([X = fact(256), write(X), nl ]).
 
 % Putting it all together 
+% so . Functional + Messaging between processes + Suspending (aka waiting for messages).
+% reducem = reducemessages.
+% reducem(PGoals, Pid, PMailbox, Ps).
+% PGoals, Pid, PMailbox: Current process properties.
+% Ps: List of processes. (AKA jobs). Because I'm lazy, I'll be talking about jobs.
+
+% No current goals left, no jobs left. Pid and PMailbox are irrelevant.
+reducem([], _, _, [] ):- !, % <-- No point backtracking.
+    write(world_stopped), nl.
+
+% No goals left in current job, Need to get the next job up
+% note we forget about his job's mailbox.
+reducem([], Pid, _ , [job(Id, Goals, Msgs)| T]):- !,
+    write(terminated(Pid)), nl,
+    write(resuming(Id)), nl,
+    reducem(Goals,Id,Msgs,T).
+
+% Implement the native 'spawn' function to spawn a new job with goals.
+reducem([spawn(Id,Goals)| T], Myid, Mymsgs, Otherjobs):- !,
+    write(spawning(Id)), nl,
+    append(Otherjobs, job(Id,Goals,[]), Morejobs),
+    reducem(T,Myid,Mymsgs,Morejobs). % <-- New job is queued, move on to the next current goals.
+
+% Implement the native 'send' function to send a message to a job ID
+reducem([send(Id,Msg) | T], Myid, Mymsgs, Otherjobs):-
+    send(Id,Msg,Otherjobs, Changedjobs), % <-- Sending a message will create a new set of other jobs.
+    !,
+    reducem(T, Myid, Mymsgs , Changedjobs). % <-- Reducing the next goals with the new environment.
+    
+% Implement the native blocking (if no message) receive function
+% There is at least one Msg in my inbox
+reducem([ receive | T], Myid, [Msg | More], Otherjobs):- !,
+    reducem([return(Msg) | T], Myid, More, Otherjobs). % <-- We assume we're going to do M = receive, so we turn the receive into a return.
+
+% Implement blocking call when no message in the inbox yet.
+reducem([receive | T] , Myid, [], Otherjobs):- !,
+    write(suspending(Myid)), nl,
+    append(Otherjobs, [job(Myid,[receive | T], [])], Morejobs), % <-- Give another chance to receive.
+    reducem([], none, [], Morejobs). % <-- The reduction restarts with the next job in line.
+
+% Now the standard implementation. with the return and the native goal
+
+
+
+% implement send. Lookup the job with the same ID and add the message to its inbox
+send(Id,Msg, [job(Id, Goals, Msgs) | T ],
+             [job(Id, Goals, Newmsgs) | T]
+            ) :- !,
+    append(Msgs, [Msg], Newmsgs). % < -- Put the new message at the end of the new messsages
+% the recursive search. We dont touch the head as it doesnt match. We just want to transform
+% T into T1 by attempting to send the message again.
+send(Id, Msg, [ H | T], [ H | T1 ]):- send(Id, Msg, T , T1).
