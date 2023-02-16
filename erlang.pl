@@ -198,7 +198,7 @@ reducem([], Pid, _ , [job(Id, Goals, Msgs)| T]):- !,
 % Implement the native 'spawn' function to spawn a new job with goals.
 reducem([spawn(Id,Goals)| T], Myid, Mymsgs, Otherjobs):- !,
     write(spawning(Id)), nl,
-    append(Otherjobs, job(Id,Goals,[]), Morejobs),
+    append(Otherjobs, [job(Id,Goals,[])], Morejobs),
     reducem(T,Myid,Mymsgs,Morejobs). % <-- New job is queued, move on to the next current goals.
 
 % Implement the native 'send' function to send a message to a job ID
@@ -247,10 +247,43 @@ send(Id, Msg, [ H | T], [ H | T1 ]):- send(Id, Msg, T , T1).
 
 
 deff(toplevel, [
-        spawn(showfact, showfact(3))
+        spawn(showfact, [showfact(3)]),
+        X = receive,
+        write(X),nl
     ]).
 
 deff(showfact(N),[
     X = fact(N),
     { write(X), nl}
 ]).
+
+% Try: reducem([], start, [],[job(showfact,[showfact(2)],[])]).
+
+
+deff(go,[
+    spawn(sender, [sender(5)]),
+    spawn(catcher, [catch])
+]).
+
+deff(sender(0),[
+    send(catcher, stop)
+]).
+
+deff(sender(N),[
+    {write(sending(pip(N))),nl},
+    send(catcher, pip(N)),
+    {N1 is N -1 },
+    sender(N1)
+]).
+
+deff(catch,[
+    X = receive,
+    {write(received(X)),nl},
+    catch(X)
+]).
+
+deff(catch(stop),[]).
+deff(catch(_),[catch]). % Catch again
+
+
+% Try again: reducem([go],startup,[],[]).
