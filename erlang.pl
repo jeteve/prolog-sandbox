@@ -170,7 +170,7 @@ deff(addone(X), [
 
 % Try trace and see how the thing is resolved 
 
-
+:- discontiguous deff/2.
 deff(fact(0), [ return(1) ]).
 deff(fact(N), [{ N1 is N -1 }, F1 = fact(N1), { R is N * F1 }, return(R)]).
 
@@ -215,11 +215,25 @@ reducem([ receive | T], Myid, [Msg | More], Otherjobs):- !,
 % Implement blocking call when no message in the inbox yet.
 reducem([receive | T] , Myid, [], Otherjobs):- !,
     write(suspending(Myid)), nl,
-    append(Otherjobs, [job(Myid,[receive | T], [])], Morejobs), % <-- Give another chance to receive.
+    append(Otherjobs, [job(Myid,[receive | T], [])], Morejobs), % <-- Give another chance to receive next time it is schedule.
     reducem([], none, [], Morejobs). % <-- The reduction restarts with the next job in line.
 
 % Now the standard implementation. with the return and the native goal
+reducem([ Var = Rhs | T ], Myid, Mymsgs, Otherjobs):- !,
+    reducem([ Rhs, '$bind'(Var) | T ], Myid, Mymsgs, Otherjobs).
 
+reducem([ return(Value), '$bind'(Var) | T], Myid, Mymsgs, Otherjobs):- !,
+    Var = Value,
+    reducem(T, Myid, Mymsgs, Otherjobs). % Note how the assignment and the return go together.
+
+reducem([{Native} | T], Myid , Mymsgs, Otherjobs):-
+    call(Native), !,
+    reducem(T, Myid, Mymsgs, Otherjobs).
+
+reducem([ Lhs | T], Myid, Mymsgs, Otherjobs):-
+    deff(Lhs, Rhs), !,
+    append(Rhs, T , T1),
+    reducem(T1, Myid, Mymsgs, Otherjobs).
 
 
 % implement send. Lookup the job with the same ID and add the message to its inbox
@@ -230,3 +244,13 @@ send(Id,Msg, [job(Id, Goals, Msgs) | T ],
 % the recursive search. We dont touch the head as it doesnt match. We just want to transform
 % T into T1 by attempting to send the message again.
 send(Id, Msg, [ H | T], [ H | T1 ]):- send(Id, Msg, T , T1).
+
+
+deff(toplevel, [
+        spawn(showfact, showfact(3))
+    ]).
+
+deff(showfact(N),[
+    X = fact(N),
+    { write(X), nl}
+]).
