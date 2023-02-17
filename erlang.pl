@@ -247,17 +247,16 @@ send(Id, Msg, [ H | T], [ H | T1 ]):- send(Id, Msg, T , T1).
 
 
 deff(toplevel, [
-        spawn(showfact, [showfact(3)]),
-        X = receive,
-        write(X),nl
+        spawn(showfact, [showfact(3)])
     ]).
 
-deff(showfact(N),[
+deff(showfact(N),[ % <-- This is a procedure. No return.
     X = fact(N),
     { write(X), nl}
 ]).
 
 % Try: reducem([], start, [],[job(showfact,[showfact(2)],[])]).
+% Try: reducem([toplevel], start, [], []).
 
 
 deff(go,[
