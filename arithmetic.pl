@@ -45,6 +45,10 @@ nat(z). % nat/1 is a predicate. No goals. so it's a fact.
 nat(s(X)) :- nat(X). % This is a rule. Made of 'predicate(<shape>) :- goals..' aka Horn clauses.
 % Note that shape can be any correctly parenthesis expression.
 % attach meaning to syntactic shapes . 
+% a = c - b
+% a + b = c => a +1 + b = c + 1
+% sum(a,b,c)
+% sum(X , z, X)
 sum(X,z,X).
 sum(z,X,X).
 sum(s(X),Y,s(Z)) :- sum(X,Y,Z).
@@ -57,6 +61,7 @@ mul(_,z,z).
 mul(z,_,z).
 mul(X,s(z),X).
 mul(s(z),Y,Y).
+
 mul(s(X),Y,Z) :- mul(X,Y,ZZ), sum(ZZ,Y,Z).
 
 % trace.

@@ -8,9 +8,9 @@
 % call(N is 1 + 2).
 
 % A naive solve.
-solve((A,B)) :- solve(A), solve(B).
-solve(A) :- builtin(A), call(A).
-solve(A) :- rule(A,B), solve(B).
+%solve((A,B)) :- solve(A), solve(B).
+%solve(A) :- builtin(A), call(A).
+%solve(A) :- rule(A,B), solve(B).
 
 %
 % Concurrency
@@ -21,20 +21,26 @@ solve(A) :- rule(A,B), solve(B).
 
 % Reduce. Better with goals
 reduce([]).
+
 reduce([{Native} | Tail]) :-
     call(Native), % call is a prolog thing.
     !,
     reduce(Tail).
+
 reduce([ Lhs | More ]) :-
     rule(Lhs,Expansion),
     append(Expansion, More, More1), % Add the expansion to the More list, turn into a More1 list.
     !,
     reduce(More1).
 
+fact(0,1). % fact/2
+fact(A,B) :- A1 is A - 1, fact(A1,B1), B is B1 * A.
+
+
 % Program the factorial!
 rule(fact(0,1), []).
 % run trace. then reduce([fact(0,X)]).
-rule(fact(N,F), [{ N1 is N -1 }, fact(N1,F1), { F is N * F1 }]).
+rule(fact(N,F), [ { N1 is N -1 }, fact(N1,F1), { F is N * F1 }]).
 % then run reduce([fact(2,X)]).
 % or to write the result:
 % reduce([fact(3,F), {write(result(F)), nl}]).
@@ -47,6 +53,9 @@ rule(fibo(N,R), [{ N1 is N - 1}, { N2 is N - 2}, fibo(N1, R1), fibo(N2, R2), { R
 % Next step: Suspend execution after N operations.
 %%
 % No more goals left. Terminated in N operations:
+% reduce( Array of Goals, N of operation Done, Result)
+% result can be either a 'termination with number of operation done'
+% or it can be a 'continuation' with the goals that are left to compute.
 reduce([], Nops, terminated(Nops)):- !.
 % Max 4 reductions. Resolves to a continuation of the same goals.
 reduce(Goals,4, continuation(Goals)):- !.
@@ -79,8 +88,10 @@ reduce([H | T], Nops, Result):-
 % 4 goals at a time.
 %
 %
+% multireduce( List of jobs). a job is job(Id, Goals)
 multi_reduce([]).
 % one job and the other jobs
+% multi_reduce/1
 multi_reduce([job(Jid, Goals) | Otherjobs ]) :-
     write(starting(Jid)),nl,
     reduce(Goals,0, Reduction), % <-- Note the use of reduce/3 that has at most 4 computation steps.
@@ -88,6 +99,7 @@ multi_reduce([job(Jid, Goals) | Otherjobs ]) :-
     % ^^ so we need a multi_reduce/3.
 
 % In terminated is the number of steps. Not very interesting.
+% multi_reduce/3  (result of reduce, JobID, List of other jobs)
 multi_reduce(terminated(_), Jid, Otherjobs) :-
     write(termination(Jid)), nl,
     multi_reduce(Otherjobs). % <-- And continue the rest of the jobs.
@@ -101,7 +113,7 @@ multi_reduce(continuation(Goals), Jid, Otherjobs) :-
 % Then try:
 /*
 
-multi_reduce([job(1,[fact(1,N)]), job(2,[fact(2,N2)])]).
+multi_reduce([job(1,[fact(1,N)]), job(2,[fact(2,N2)]), job(3,[fibo(6,F2)])]).
 
 multi_reduce([job(1,[fact(1,N)]), job(2,[fact(3,N2), {write(N2),nl}])]).
 
